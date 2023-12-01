@@ -2,6 +2,8 @@ use std::num::ParseIntError;
 use axum::{Router, routing::get};
 use axum::extract::Path;
 use axum::http::StatusCode;
+use shuttle_runtime::__internals::tracing_subscriber;
+use tracing::log::info;
 
 async fn hello_world() -> &'static str {
     "Hello, world!"
@@ -16,12 +18,16 @@ async fn error_500() -> Result<String, StatusCode> {
 // }
 
 async fn day1_get(Path(path): Path<String>) -> Result<String, StatusCode> {
-    let nums: Result<Vec<i32>, ParseIntError> = path.split("/").map(|x| {
+    let nums: Result<Vec<i32>, ParseIntError> = path.split_terminator("/").map(|x| {
         let parsed_x = x.parse::<i32>()?;
         Ok(parsed_x)
     }).collect();
     match nums {
         Ok(nums) => {
+            info!("Got nums: {:?}", nums.len());
+            if nums.len() > 20 {
+                return Err(StatusCode::URI_TOO_LONG);
+            }
             let result = nums.iter().fold(0, |acc, x| acc ^ x).pow(3);
             Ok(format!("{}", result))
         },
