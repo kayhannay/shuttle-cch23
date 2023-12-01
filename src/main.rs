@@ -1,8 +1,8 @@
 use std::num::ParseIntError;
+
 use axum::{Router, routing::get};
 use axum::extract::Path;
 use axum::http::StatusCode;
-use shuttle_runtime::__internals::tracing_subscriber;
 use tracing::log::info;
 
 async fn hello_world() -> &'static str {
