@@ -209,9 +209,11 @@ name = "cch23-klismas"
 version = "0.1.0"
 dependencies = [
  "axum",
+ "hyper",
  "shuttle-axum",
  "shuttle-runtime",
  "tokio",
+ "tower",
  "tracing",
 ]
 
