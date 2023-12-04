@@ -1,11 +1,15 @@
 use axum::{Router, routing::get};
+use axum::routing::post;
 
 use day_01::day01_get;
 use day_minus1::error_500;
 use day_minus1::hello_world;
+use day_04::day04_post;
+use day_04::day04_post_contest;
 
 mod day_minus1;
 mod day_01;
+mod day_04;
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
@@ -16,7 +20,9 @@ fn init_app() -> Router {
     Router::new()
         .route("/", get(hello_world))
         .route("/500", get(error_500))
-        .route("/day01/:nums", get(day01_get))
+        .route("/1/:nums", get(day01_get))
+        .route("/4/strength", post(day04_post))
+        .route("/4/contest", post(day04_post_contest))
 }
 
 #[cfg(test)]
