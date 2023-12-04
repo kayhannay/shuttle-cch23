@@ -206,12 +206,11 @@ dependencies = [
 
 [[package]]
 name = "cch23-klismas"
-version = "0.1.0"
+version = "0.4.0"
 dependencies = [
  "axum",
  "hyper",
  "serde",
- "serde_json",
  "shuttle-axum",
  "shuttle-runtime",
  "tokio",

@@ -27,6 +27,7 @@ fn init_app() -> Router {
 
 #[cfg(test)]
 mod tests {
+    use hyper::body;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
     use tower::util::ServiceExt;
@@ -41,7 +42,7 @@ mod tests {
             .await.unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = hyper::body::to_bytes(response.into_body()).await.unwrap();
+        let body = body::to_bytes(response.into_body()).await.unwrap();
         let body_string = std::str::from_utf8( &body).unwrap();
         assert_eq!(body_string, "Hello, world!");
     }

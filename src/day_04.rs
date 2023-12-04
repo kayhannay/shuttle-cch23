@@ -14,10 +14,19 @@ pub async fn day04_post_contest(Json(reindeers): Json<Vec<ContestReindeer>>) -> 
     let fastest: &ContestReindeer = reindeers
         .iter()
         .max_by(|reindeer1, reindeer2| reindeer1.speed.partial_cmp(&reindeer2.speed).unwrap())
-        .ok_or(StatusCode::BAD_REQUEST)?; //by_key(|reindeer| reindeer.speed).ok_or(StatusCode::BAD_REQUEST)?;
-    let tallest: &ContestReindeer = reindeers.iter().max_by_key(|reindeer| reindeer.height).ok_or(StatusCode::BAD_REQUEST)?;
-    let magician: &ContestReindeer = reindeers.iter().max_by_key(|reindeer| reindeer.snow_magic_power).ok_or(StatusCode::BAD_REQUEST)?;
-    let consumer: &ContestReindeer = reindeers.iter().max_by_key(|reindeer| reindeer.candies_eaten_yesterday).ok_or(StatusCode::BAD_REQUEST)?;
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let tallest: &ContestReindeer = reindeers
+        .iter()
+        .max_by_key(|reindeer| reindeer.height)
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let magician: &ContestReindeer = reindeers
+        .iter()
+        .max_by_key(|reindeer| reindeer.snow_magic_power)
+        .ok_or(StatusCode::BAD_REQUEST)?;
+    let consumer: &ContestReindeer = reindeers
+        .iter()
+        .max_by_key(|reindeer| reindeer.candies_eaten_yesterday)
+        .ok_or(StatusCode::BAD_REQUEST)?;
 
     Ok(Json(ContestResult {
         fastest: format!("Speeding past the finish line with a strength of {} is {}", fastest.strength, fastest.name),
@@ -112,6 +121,4 @@ mod tests {
         let result_object = result.deref();
         assert_eq!(result_object, &expected);
     }
-
-
 }
