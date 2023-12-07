@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use axum::extract::TypedHeader;
 use axum::headers::Cookie;
 use axum::http::StatusCode;
@@ -17,51 +18,44 @@ pub async fn day07_get(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<Strin
 
 #[derive(Deserialize, Debug)]
 pub struct BakeData{
-    recipe: Ingredients,
-    pantry: Ingredients,
+    recipe: HashMap<String, i32>,
+    pantry: HashMap<String, i32>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct BakeResult{
     cookies: i32,
-    pantry: Ingredients,
+    pantry: HashMap<String, i32>,
 }
 
-
-#[derive(Deserialize, Serialize, Debug)]
-pub struct Ingredients{
-    flour: i32,
-    sugar: i32,
-    butter: i32,
-    #[serde(rename = "baking powder")]
-    baking_powder: i32,
-    #[serde(rename = "chocolate chips")]
-    chocolate_chips: i32,
-}
-
-impl Ingredients {
-    pub fn bake(&mut self, recipe: &Ingredients) -> bool {
-        if self.flour < recipe.flour {
-            return false;
+impl BakeData {
+    fn ingredients_available(&mut self) -> bool {
+        for ingredient in self.recipe.iter() {
+            if let Some(pantry_ingredient) = self.pantry.get(ingredient.0) {
+                if pantry_ingredient <= ingredient.1 {
+                    return false;
+                }
+            } else {
+                return false;
+            }
         }
-        if self.sugar < recipe.sugar {
-            return false;
+        for ingredient in self.recipe.iter() {
+            if let Some(pantry_ingredient) = self.pantry.get_mut(ingredient.0) {
+                *pantry_ingredient -= ingredient.1;
+            }
         }
-        if self.butter < recipe.butter {
-            return false;
-        }
-        if self.baking_powder < recipe.baking_powder {
-            return false;
-        }
-        if self.chocolate_chips < recipe.chocolate_chips {
-            return false;
-        }
-        self.flour -= recipe.flour;
-        self.sugar -= recipe.sugar;
-        self.butter -= recipe.butter;
-        self.baking_powder -= recipe.baking_powder;
-        self.chocolate_chips -= recipe.chocolate_chips;
         true
+    }
+
+    pub fn bake(&mut self) -> BakeResult {
+        let mut cookie_counter = 0;
+        while self.ingredients_available() {
+            cookie_counter += 1;
+        }
+        BakeResult {
+            cookies: cookie_counter,
+            pantry: self.pantry.clone(),
+        }
     }
 }
 
@@ -70,16 +64,8 @@ pub async fn day07_get_task2(TypedHeader(cookie): TypedHeader<Cookie>) -> Result
     let data = cookie.get("recipe")
         .and_then(|data| Some(data.to_string().decode())).ok_or(StatusCode::BAD_REQUEST)?.map_err(|_| StatusCode::BAD_REQUEST);
     info!("Got data: {:?}", data);
-    let bake_data: BakeData = serde_json::from_str(&data.unwrap()).map_err(|e| { error!("Could not parse data: {}", e); StatusCode::BAD_REQUEST})?;
+    let mut bake_data: BakeData = serde_json::from_str(&data.unwrap()).map_err(|e| { error!("Could not parse data: {}", e); StatusCode::BAD_REQUEST})?;
     info!("Got bake data: {:?}", bake_data);
-    let recipe = bake_data.recipe;
-    let mut pantry = bake_data.pantry;
-    let mut cookie_counter = 0;
-    while pantry.bake(&recipe) {
-        cookie_counter += 1;
-    }
-    Ok(Json(BakeResult {
-        cookies: cookie_counter,
-        pantry,
-    }))
+    let bake_result = bake_data.bake();
+    Ok(Json(bake_result))
 }
