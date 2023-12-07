@@ -30,21 +30,20 @@ pub struct BakeResult{
 
 impl BakeData {
     fn ingredients_available(&mut self) -> bool {
-        for ingredient in self.recipe.iter() {
-            if let Some(pantry_ingredient) = self.pantry.get(ingredient.0) {
-                if pantry_ingredient <= ingredient.1 {
-                    return false;
-                }
-            } else {
-                return false;
-            }
+        let available = self.recipe.iter()
+            .filter(|(ingredient, amount)|
+                self.pantry.contains_key(ingredient as &str)
+                    && self.pantry.get(ingredient as &str).unwrap() >= amount)
+            .count() == self.recipe.len();
+        if available {
+            self.recipe.iter().for_each(|(ingredient, amount)| {
+                let current_amount = self.pantry.get(ingredient).unwrap();
+                self.pantry.insert(ingredient.to_string(), current_amount - amount);
+            });
+            true
+        } else {
+            false
         }
-        for ingredient in self.recipe.iter() {
-            if let Some(pantry_ingredient) = self.pantry.get_mut(ingredient.0) {
-                *pantry_ingredient -= ingredient.1;
-            }
-        }
-        true
     }
 
     pub fn bake(&mut self) -> BakeResult {
