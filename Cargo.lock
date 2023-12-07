@@ -103,6 +103,7 @@ dependencies = [
  "bitflags 1.3.2",
  "bytes",
  "futures-util",
+ "headers",
  "http",
  "http-body",
  "hyper",
@@ -209,8 +210,11 @@ name = "cch23-klismas"
 version = "0.4.0"
 dependencies = [
  "axum",
+ "base64",
  "hyper",
+ "lib-base64",
  "serde",
+ "serde_json",
  "shuttle-axum",
  "shuttle-runtime",
  "tokio",
@@ -769,6 +773,12 @@ name = "lazy_static"
 version = "1.4.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "e2abad23fbc42b3700f2f279844dc832adb2b2eb069b2df918f455c4e18cc646"
+
+[[package]]
+name = "lib-base64"
+version = "2.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "e7280ef4c75c8c3b71116524b178d1bee26cbd9af0167e507fa8c7616bb69a8d"
 
 [[package]]
 name = "libc"
