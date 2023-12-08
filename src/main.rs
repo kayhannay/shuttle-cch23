@@ -2,18 +2,21 @@ use axum::{Router, routing::get};
 use axum::routing::post;
 
 use day_01::day01_get;
-use day_minus1::error_500;
-use day_minus1::hello_world;
 use day_04::day04_post;
 use day_04::day04_post_contest;
 use day_06::day06_post;
-use crate::day_07::{day07_get, day07_get_task2};
+use day_07::{day07_get, day07_get_task2};
+use day_08::day08_get;
+use day_minus1::error_500;
+use day_minus1::hello_world;
+use crate::day_08::day08_get_drop;
 
 mod day_minus1;
 mod day_01;
 mod day_04;
 mod day_06;
 mod day_07;
+mod day_08;
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
@@ -30,13 +33,15 @@ fn init_app() -> Router {
         .route("/6", post(day06_post))
         .route("/7/decode", get(day07_get))
         .route("/7/bake", get(day07_get_task2))
+        .route("/8/weight/:id", get(day08_get))
+        .route("/8/drop/:id", get(day08_get_drop))
 }
 
 #[cfg(test)]
 mod tests {
-    use hyper::body;
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
+    use hyper::body;
     use tower::util::ServiceExt;
 
     use crate::init_app;
@@ -76,7 +81,12 @@ mod tests {
 
         assert_eq!(response.status(), StatusCode::OK);
         let body = body::to_bytes(response.into_body()).await.unwrap();
-        let body_string = std::str::from_utf8( &body).unwrap();
-        assert_eq!(body_string, "{\"flour\":100,\"chocolate chips\":20}");
+        let body_string  = std::str::from_utf8(&body).unwrap();
+        assert!(body_string.contains("cookies\":4"));
+        assert!(body_string.contains("butter\":2002"));
+        assert!(body_string.contains("sugar\":307"));
+        assert!(body_string.contains("flour\":5"));
+        assert!(body_string.contains("baking powder\":825"));
+        assert!(body_string.contains("chocolate chips\":257"));
     }
 }
