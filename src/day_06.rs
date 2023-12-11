@@ -9,7 +9,7 @@ pub async fn day06_post(text: String) -> Result<Json<Answer>, StatusCode> {
     let mut filter_text = text.clone();
     let mut elf_shelf = 0;
     while filter_text.find("elf on a shelf").is_some() {
-        filter_text = filter_text.replacen("elf on a shelf", "", 1);
+        filter_text = filter_text.replacen("elf on a shelf", "elf", 1);
         elf_shelf += 1;
     }
     let shelf_no_elf: i32 = filter_text.split(" ").filter(|word| word.contains(&"shelf")).count() as i32;
@@ -55,5 +55,16 @@ mod tests {
         assert_eq!(a.elf, 5);
         assert_eq!(a.elf_shelf, 1);
         assert_eq!(a.shelf_no_elf, 1);
+    }
+
+    #[tokio::test]
+    pub async fn test_day06_contest_post2() {
+        let answer = super::day06_post("In Belfast I heard an elf on a shelf on a shelf on a".to_string()
+                                                    ).await.expect("Should be ok");
+        let a: &Answer = answer.deref();
+
+        assert_eq!(a.elf, 4);
+        assert_eq!(a.elf_shelf, 2);
+        assert_eq!(a.shelf_no_elf, 0);
     }
 }

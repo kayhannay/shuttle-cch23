@@ -30,7 +30,7 @@ async fn get_pokemon(api: String, id: i32) -> Result<Pokemon, StatusCode> {
 
 async fn day08_get_impl(api: String, id: i32) -> Result<String, StatusCode> {
     let pokemon = get_pokemon(api, id).await?;
-    Ok(format!("{}", pokemon.weight / 10))
+    Ok(format!("{}", pokemon.weight as f32 / 10f32))
 }
 
 pub async fn day08_get_drop(Path(id): Path<i32>) -> Result<String, StatusCode> {
@@ -41,7 +41,7 @@ async fn day08_get_drop_impl(api: String, id: i32) -> Result<String, StatusCode>
     let pokemon = get_pokemon(api, id).await?;
     let speed = (2f32 * GRAVITY * 10f32).sqrt();
     info!("Speed: {}", speed);
-    let impulse = speed * (pokemon.weight / 10) as f32;
+    let impulse = speed * (pokemon.weight as f32 / 10f32);
     info!("Impulse: {}", impulse);
     Ok(format!("{}", impulse))
 }

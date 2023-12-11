@@ -18,14 +18,14 @@ pub async fn day07_get(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<Strin
 
 #[derive(Deserialize, Debug)]
 pub struct BakeData{
-    recipe: HashMap<String, i32>,
-    pantry: HashMap<String, i32>,
+    recipe: HashMap<String, i64>,
+    pantry: HashMap<String, i64>,
 }
 
 #[derive(Serialize, Debug)]
 pub struct BakeResult{
-    cookies: i32,
-    pantry: HashMap<String, i32>,
+    cookies: i64,
+    pantry: HashMap<String, i64>,
 }
 
 impl BakeData {
@@ -36,7 +36,8 @@ impl BakeData {
                     && self.pantry.get(ingredient as &str).unwrap() >= amount)
             .count() == self.recipe.len();
         if available {
-            self.recipe.iter().for_each(|(ingredient, amount)| {
+            self.recipe.iter()
+                .for_each(|(ingredient, amount)| {
                 let current_amount = self.pantry.get(ingredient).unwrap();
                 self.pantry.insert(ingredient.to_string(), current_amount - amount);
             });
@@ -48,6 +49,8 @@ impl BakeData {
 
     pub fn bake(&mut self) -> BakeResult {
         let mut cookie_counter = 0;
+        self.recipe.retain(|_, amount| *amount > 0i64);
+        info!("Recipe after cleanup: {:?}", self.recipe);
         while self.ingredients_available() {
             cookie_counter += 1;
         }
@@ -66,5 +69,6 @@ pub async fn day07_get_task2(TypedHeader(cookie): TypedHeader<Cookie>) -> Result
     let mut bake_data: BakeData = serde_json::from_str(&data.unwrap()).map_err(|e| { error!("Could not parse data: {}", e); StatusCode::BAD_REQUEST})?;
     info!("Got bake data: {:?}", bake_data);
     let bake_result = bake_data.bake();
+    info!("Bake result: {:?}", bake_result);
     Ok(Json(bake_result))
 }

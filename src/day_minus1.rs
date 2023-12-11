@@ -1,10 +1,12 @@
 use axum::http::StatusCode;
+use tracing::info;
 
 pub async fn hello_world() -> &'static str {
     "Hello, world!"
 }
 
 pub async fn error_500() -> Result<String, StatusCode> {
+    info!("Return error 500");
     Err(StatusCode::INTERNAL_SERVER_ERROR)
 }
 

@@ -1,5 +1,6 @@
 use axum::{Router, routing::get};
 use axum::routing::post;
+use tower_http::services::ServeDir;
 
 use day_01::day01_get;
 use day_04::day04_post;
@@ -17,6 +18,7 @@ mod day_04;
 mod day_06;
 mod day_07;
 mod day_08;
+mod day_11;
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
@@ -26,8 +28,8 @@ async fn main() -> shuttle_axum::ShuttleAxum {
 fn init_app() -> Router {
     Router::new()
         .route("/", get(hello_world))
-        .route("/500", get(error_500))
-        .route("/1/:nums", get(day01_get))
+        .route("/-1/error", get(error_500))
+        .route("/1/*nums", get(day01_get))
         .route("/4/strength", post(day04_post))
         .route("/4/contest", post(day04_post_contest))
         .route("/6", post(day06_post))
@@ -35,6 +37,8 @@ fn init_app() -> Router {
         .route("/7/bake", get(day07_get_task2))
         .route("/8/weight/:id", get(day08_get))
         .route("/8/drop/:id", get(day08_get_drop))
+        .nest_service("/11/assets/", ServeDir::new("assets"))
+        .route("/11/red_pixels", post(day_11::day11_post))
 }
 
 #[cfg(test)]
