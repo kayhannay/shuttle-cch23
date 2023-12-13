@@ -1,5 +1,8 @@
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
 use axum::{Router, routing::get};
 use axum::routing::post;
+use chrono::{DateTime, Utc};
 use tower_http::services::ServeDir;
 
 use day_01::day01_get;
@@ -11,6 +14,7 @@ use day_08::day08_get;
 use day_minus1::error_500;
 use day_minus1::hello_world;
 use crate::day_08::day08_get_drop;
+use crate::day_12::{day12_load, day12_save};
 
 mod day_minus1;
 mod day_01;
@@ -19,13 +23,20 @@ mod day_06;
 mod day_07;
 mod day_08;
 mod day_11;
+mod day_12;
 
 #[shuttle_runtime::main]
 async fn main() -> shuttle_axum::ShuttleAxum {
     Ok(init_app().into())
 }
 
+#[derive(Clone)]
+struct AppState {
+    day12: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
+}
+
 fn init_app() -> Router {
+    let shared_state = AppState { day12: Arc::new(Mutex::new(HashMap::new())) };
     Router::new()
         .route("/", get(hello_world))
         .route("/-1/error", get(error_500))
@@ -39,6 +50,9 @@ fn init_app() -> Router {
         .route("/8/drop/:id", get(day08_get_drop))
         .nest_service("/11/assets/", ServeDir::new("assets"))
         .route("/11/red_pixels", post(day_11::day11_post))
+        .route("/12/save/:text", post(day12_save))
+        .route("/12/load/:text", get(day12_load))
+        .with_state(shared_state)
 }
 
 #[cfg(test)]
