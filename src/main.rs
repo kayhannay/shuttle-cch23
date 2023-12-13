@@ -1,12 +1,10 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use axum::{Json, Router};
+use axum::Router;
 use axum::routing::get;
 use axum::routing::post;
 use chrono::{DateTime, Utc};
-use serde_json::json;
 use sqlx::PgPool;
-use tower_http::classify::ServerErrorsFailureClass::StatusCode;
 use tower_http::services::ServeDir;
 use tracing::info;
 
@@ -77,14 +75,8 @@ async fn init_app(pool: PgPool) -> Result<Router, shuttle_runtime::Error> {
         .route("/13/reset", post(day13_reset))
         .route("/13/orders", post(day13_insert_orders))
         .route("/13/orders/total", get(day13_total_orders))
-        //.route("/13/orders/popular", get(day13_popular_orders))
-        .route("/13/orders/popular", get(handler))
+        .route("/13/orders/popular", get(day13_popular_orders))
         .with_state(shared_state))
-}
-
-async fn handler() -> impl axum::response::IntoResponse {
-    info!("Handler called.");
-
 }
 
 #[cfg(test)]

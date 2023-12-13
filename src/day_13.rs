@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
-use axum::response::IntoResponse;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Row};
 use sqlx::postgres::PgRow;
@@ -86,16 +85,16 @@ pub async fn day13_total_orders(State(state): State<AppState>) -> Result<Json<Or
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Popular {
-    pub total: String,
+    pub popular: Option<String>,
 }
 
-pub async fn day13_popular_orders(State(state): State<AppState>) -> Result<String,StatusCode> {
+pub async fn day13_popular_orders(State(state): State<AppState>) -> Result<Json<Popular>,StatusCode> {
     info!("Popular orders called.");
     let rows = sqlx::query("SELECT * FROM orders")
         .fetch_all(&state.db_pool)
         .await.unwrap_or_else(|_| vec![]);
     if rows.is_empty() {
-        return StatusCode::
+        return Ok(Json(Popular { popular: None }))
     }
     let mut orders: HashMap<String,i32> = HashMap::new();
     rows.iter()
@@ -112,6 +111,6 @@ pub async fn day13_popular_orders(State(state): State<AppState>) -> Result<Strin
         .max_by_key(|order| order.1)
         .ok_or(StatusCode::BAD_REQUEST)?;
     info!("Popular order: {} with {} orders", popular, quantity);
-    Ok(serde_json::to_string(&Popular { total: popular.to_string() }).unwrap())
+    Ok(Json(Popular { popular: Some(popular.to_string()) }))
 }
 
