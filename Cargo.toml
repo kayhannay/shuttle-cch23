@@ -9,6 +9,8 @@ axum = "0.7.2"
 axum-extra = { version = "0.9.0", features = ["multipart", "typed-header"] }
 shuttle-axum = { version = "0.35.1", default-features = false, features = ["axum-0-7"] }
 shuttle-runtime = "0.35.1"
+shuttle-shared-db = { version = "0.35.1", default-features = false, features = ["postgres-rustls"] }
+sqlx = { version = "0.7.1", features = ["runtime-tokio-rustls", "postgres"] }
 tracing = "0.1.40"
 serde = { version = "1.0.193", features = ["derive"] }
 lib-base64 = "2.0.4"

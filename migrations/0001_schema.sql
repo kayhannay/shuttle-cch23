@@ -1,0 +1,6 @@
+DROP TABLE IF EXISTS day13_get;
+
+CREATE TABLE day13_get (
+   id serial PRIMARY KEY,
+   num INTEGER NOT NULL
+);

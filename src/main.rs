@@ -1,10 +1,14 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use axum::Router;
+use axum::{Json, Router};
 use axum::routing::get;
 use axum::routing::post;
 use chrono::{DateTime, Utc};
+use serde_json::json;
+use sqlx::PgPool;
+use tower_http::classify::ServerErrorsFailureClass::StatusCode;
 use tower_http::services::ServeDir;
+use tracing::info;
 
 use day_01::day01_get;
 use day_04::day04_post;
@@ -16,6 +20,7 @@ use day_minus1::error_500;
 use day_minus1::hello_world;
 use crate::day_08::day08_get_drop;
 use crate::day_12::{day12_load, day12_save, day12_ulids, day12_ulids_weekday};
+use crate::day_13::{day13_insert_orders, day13_popular_orders, day13_reset, day13_sql, day13_total_orders};
 
 mod day_minus1;
 mod day_01;
@@ -25,20 +30,33 @@ mod day_07;
 mod day_08;
 mod day_11;
 mod day_12;
+mod day_13;
 
 #[shuttle_runtime::main]
-async fn main() -> shuttle_axum::ShuttleAxum {
-    Ok(init_app().into())
+async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
+    Ok(init_app(pool).await?.into())
 }
 
 #[derive(Clone)]
 struct AppState {
     day12: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
+    db_pool: PgPool,
 }
 
-fn init_app() -> Router {
-    let shared_state = AppState { day12: Arc::new(Mutex::new(HashMap::new())) };
-    Router::new()
+async fn init_app(pool: PgPool) -> Result<Router, shuttle_runtime::Error> {
+
+    info!("Migrating database.");
+    sqlx::migrate!()
+        .run(&pool)
+        .await.map_err(|e| shuttle_runtime::CustomError::new(e))?;
+    info!("Initializing state.");
+    let shared_state = AppState {
+        day12: Arc::new(Mutex::new(HashMap::new())),
+        db_pool: pool,
+    };
+
+    info!("Initializing router.");
+    Ok(Router::new()
         .route("/", get(hello_world))
         .route("/-1/error", get(error_500))
         .route("/1/*nums", get(day01_get))
@@ -55,7 +73,18 @@ fn init_app() -> Router {
         .route("/12/load/:text", get(day12_load))
         .route("/12/ulids", post(day12_ulids))
         .route("/12/ulids/:weekday", post(day12_ulids_weekday))
-        .with_state(shared_state)
+        .route("/13/sql", get(day13_sql))
+        .route("/13/reset", post(day13_reset))
+        .route("/13/orders", post(day13_insert_orders))
+        .route("/13/orders/total", get(day13_total_orders))
+        //.route("/13/orders/popular", get(day13_popular_orders))
+        .route("/13/orders/popular", get(handler))
+        .with_state(shared_state))
+}
+
+async fn handler() -> impl axum::response::IntoResponse {
+    info!("Handler called.");
+
 }
 
 #[cfg(test)]
