@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use axum::{Router, routing::get};
+use axum::Router;
+use axum::routing::get;
 use axum::routing::post;
 use chrono::{DateTime, Utc};
 use tower_http::services::ServeDir;
@@ -61,7 +62,7 @@ fn init_app() -> Router {
 mod tests {
     use axum::body::Body;
     use axum::http::{Request, StatusCode};
-    use hyper::body;
+    use axum::body::to_bytes;
     use tower::util::ServiceExt;
 
     use crate::init_app;
@@ -74,7 +75,7 @@ mod tests {
             .await.unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = body::to_bytes(response.into_body()).await.unwrap();
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body_string = std::str::from_utf8( &body).unwrap();
         assert_eq!(body_string, "Hello, world!");
     }
@@ -87,7 +88,7 @@ mod tests {
             .await.unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = body::to_bytes(response.into_body()).await.unwrap();
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body_string = std::str::from_utf8( &body).unwrap();
         assert_eq!(body_string, "{\"flour\":100,\"chocolate chips\":20}");
     }
@@ -100,7 +101,7 @@ mod tests {
             .await.unwrap();
 
         assert_eq!(response.status(), StatusCode::OK);
-        let body = body::to_bytes(response.into_body()).await.unwrap();
+        let body = to_bytes(response.into_body(), usize::MAX).await.unwrap();
         let body_string  = std::str::from_utf8(&body).unwrap();
         assert!(body_string.contains("cookies\":4"));
         assert!(body_string.contains("butter\":2002"));

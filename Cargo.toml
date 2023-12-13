@@ -1,13 +1,14 @@
 [package]
 name = "cch23-klismas"
-version = "0.11.0"
+version = "0.12.0"
 edition = "2021"
 publish = false
 
 [dependencies]
-axum = { version = "0.6.20", features = ["headers", "multipart"] }
-shuttle-axum = "0.34.1"
-shuttle-runtime = "0.34.1"
+axum = "0.7.2"
+axum-extra = { version = "0.9.0", features = ["multipart", "typed-header"] }
+shuttle-axum = { version = "0.35.1", default-features = false, features = ["axum-0-7"] }
+shuttle-runtime = "0.35.1"
 tracing = "0.1.40"
 serde = { version = "1.0.193", features = ["derive"] }
 lib-base64 = "2.0.4"
@@ -15,7 +16,7 @@ base64 = "0.21.5"
 serde_json = "1.0.108"
 reqwest = { version = "0.11.22", features = ["json", "rustls"] }
 matchers = "0.1.0"
-tower-http = { version = "0.4.4", features = ["fs"] }
+tower-http = { version = "0.5.0", features = ["fs"] }
 image = { version = "0.24.7", features = [] }
 chrono = "0.4.31"
 tokio = "1.35.0"
@@ -24,6 +25,6 @@ uuid = { version = "1.6.1", features = ["v4"] }
 
 [dev-dependencies]
 tokio = "1.34.0"
-hyper = "0.14.27"
+hyper = "1.0.1"
 tower = "0.4.13"
 wiremock = "0.5.22"
