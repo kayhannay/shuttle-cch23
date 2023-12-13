@@ -14,7 +14,7 @@ use day_08::day08_get;
 use day_minus1::error_500;
 use day_minus1::hello_world;
 use crate::day_08::day08_get_drop;
-use crate::day_12::{day12_load, day12_save};
+use crate::day_12::{day12_load, day12_save, day12_ulids, day12_ulids_weekday};
 
 mod day_minus1;
 mod day_01;
@@ -52,6 +52,8 @@ fn init_app() -> Router {
         .route("/11/red_pixels", post(day_11::day11_post))
         .route("/12/save/:text", post(day12_save))
         .route("/12/load/:text", get(day12_load))
+        .route("/12/ulids", post(day12_ulids))
+        .route("/12/ulids/:weekday", post(day12_ulids_weekday))
         .with_state(shared_state)
 }
 
