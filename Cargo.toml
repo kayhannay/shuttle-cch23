@@ -35,3 +35,5 @@ tokio = "1.34.0"
 hyper = "1.0.1"
 tower = "0.4.13"
 wiremock = "0.5.22"
+rstest = "0.18.2"
+async-std = { version = "1.5", features = ["attributes"] }
