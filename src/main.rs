@@ -22,6 +22,7 @@ use crate::day_08::day08_get_drop;
 use crate::day_12::{day12_load, day12_save, day12_ulids, day12_ulids_weekday};
 use crate::day_13::{day13_insert_orders, day13_popular_orders, day13_reset, day13_sql, day13_total_orders};
 use crate::day_14::{day14_safe, day14_unsafe};
+use crate::day_15::{day15_game, day15_password};
 
 mod day_minus1;
 mod day_01;
@@ -33,6 +34,7 @@ mod day_11;
 mod day_12;
 mod day_13;
 mod day_14;
+mod day_15;
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
@@ -92,6 +94,8 @@ async fn init_app(pool: PgPool) -> Result<Router, shuttle_runtime::Error> {
         .route("/13/orders/popular", get(day13_popular_orders))
         .route("/14/unsafe", post(day14_unsafe))
         .route("/14/safe", post(day14_safe))
+        .route("/15/nice", post(day15_password))
+        .route("/15/game", post(day15_game))
         .with_state(shared_state))
 }
 
