@@ -38,7 +38,7 @@ mod day_15;
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
-    Ok(init_app(pool).await?.into())
+    Ok(init_app_with_db(pool).await?.into())
 }
 
 type AppEngine = Engine<Handlebars<'static>>;
@@ -46,16 +46,19 @@ type AppEngine = Engine<Handlebars<'static>>;
 #[derive(Clone)]
 struct AppState {
     day12: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
-    db_pool: PgPool,
+    db_pool: Option<PgPool>,
     template_engine: AppEngine,
 }
 
-async fn init_app(pool: PgPool) -> Result<Router, shuttle_runtime::Error> {
-
+async fn init_app_with_db(pool: PgPool) -> Result<Router, shuttle_runtime::Error> {
     info!("Migrating database.");
     sqlx::migrate!()
         .run(&pool)
         .await.map_err(|e| shuttle_runtime::CustomError::new(e))?;
+
+    init_app(Some(pool)).await
+}
+async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error> {
 
     info!("Initializing template engine.");
     let mut hbs = Handlebars::new();
@@ -110,8 +113,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_app() {
-        let app = init_app();
-        let response = app
+        let app = init_app(None);
+        let response = app.await.unwrap()
             .oneshot(Request::builder().uri("/").body(Body::empty()).unwrap())
             .await.unwrap();
 
@@ -123,7 +126,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_day07() {
-        let app = init_app();
+        let app = init_app(None).await.unwrap();
         let response = app
             .oneshot(Request::builder().uri("/7/decode").header("cookie", "recipe=eyJmbG91ciI6MTAwLCJjaG9jb2xhdGUgY2hpcHMiOjIwfQ==").body(Body::empty()).unwrap())
             .await.unwrap();
@@ -136,7 +139,7 @@ mod tests {
 
     #[tokio::test]
     async fn test_day07_bake() {
-        let app = init_app();
+        let app = init_app(None).await.unwrap();
         let response = app
             .oneshot(Request::builder().uri("/7/bake").header("cookie", "recipe=eyJyZWNpcGUiOnsiZmxvdXIiOjk1LCJzdWdhciI6NTAsImJ1dHRlciI6MzAsImJha2luZyBwb3dkZXIiOjEwLCJjaG9jb2xhdGUgY2hpcHMiOjUwfSwicGFudHJ5Ijp7ImZsb3VyIjozODUsInN1Z2FyIjo1MDcsImJ1dHRlciI6MjEyMiwiYmFraW5nIHBvd2RlciI6ODY1LCJjaG9jb2xhdGUgY2hpcHMiOjQ1N319").body(Body::empty()).unwrap())
             .await.unwrap();

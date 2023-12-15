@@ -65,7 +65,7 @@ mod tests {
             }))
             .mount(&mock_server)
             .await;
-        assert_eq!(super::day08_get_impl(mock_server.uri(), 1).await, Ok("6".to_string()));
+        assert_eq!(super::day08_get_impl(mock_server.uri(), 1).await, Ok("6.9".to_string()));
     }
 
     #[tokio::test]
@@ -80,6 +80,6 @@ mod tests {
             }))
             .mount(&mock_server)
             .await;
-        assert_eq!(super::day08_get_drop_impl(mock_server.uri(), 1).await,  Ok("84.10708".to_string()));
+        assert_eq!(super::day08_get_drop_impl(mock_server.uri(), 1).await,  Ok("96.72314".to_string()));
     }
 }

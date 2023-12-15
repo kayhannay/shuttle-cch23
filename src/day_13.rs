@@ -24,8 +24,9 @@ pub struct Order {
 
 pub async fn day13_sql(State(state): State<AppState>) -> Result<String, StatusCode> {
     info!("Get SQL called.");
+    let pool = state.db_pool.unwrap();
     match sqlx::query_as::<_, Get>("SELECT * FROM day13_get")
-        .fetch_one(&state.db_pool)
+        .fetch_one(&pool)
         .await
     {
         Ok(get) => Ok(format!("{}", get.num)),
@@ -35,8 +36,9 @@ pub async fn day13_sql(State(state): State<AppState>) -> Result<String, StatusCo
 
 pub async fn day13_reset(State(state): State<AppState>) -> Result<StatusCode, StatusCode> {
     info!("Reset SQL called.");
+    let pool = state.db_pool.unwrap();
     sqlx::query("DROP TABLE IF EXISTS orders")
-        .execute(&state.db_pool)
+        .execute(&pool)
         .await.map_err(|_| StatusCode::BAD_REQUEST)?;
     match sqlx::query("CREATE TABLE orders (
             id INT PRIMARY KEY,
@@ -44,7 +46,7 @@ pub async fn day13_reset(State(state): State<AppState>) -> Result<StatusCode, St
             gift_name VARCHAR(50),
             quantity INT
         )")
-        .execute(&state.db_pool)
+        .execute(&pool)
         .await
     {
         Ok(_) => Ok(StatusCode::OK),
@@ -54,13 +56,14 @@ pub async fn day13_reset(State(state): State<AppState>) -> Result<StatusCode, St
 
 pub async fn day13_insert_orders(State(state): State<AppState>, Json(orders): Json<Vec<Order>>) -> Result<StatusCode,StatusCode> {
     info!("Insert orders: {:?}", orders);
+    let pool = state.db_pool.unwrap();
     for order in orders {
         let _ = sqlx::query("INSERT INTO orders (id, region_id, gift_name, quantity) VALUES ($1, $2, $3, $4)")
             .bind(order.id)
             .bind(order.region_id)
             .bind(&order.gift_name)
             .bind(order.quantity)
-            .execute(&state.db_pool)
+            .execute(&pool)
             .await.map_err(|_| StatusCode::BAD_REQUEST)?;
 
     }
@@ -74,8 +77,9 @@ pub struct OrderCount {
 
 pub async fn day13_total_orders(State(state): State<AppState>) -> Result<Json<OrderCount>, StatusCode> {
     info!("Total orders called.");
+    let pool = state.db_pool.unwrap();
     let row: PgRow = sqlx::query("SELECT SUM(quantity) FROM orders")
-        .fetch_one(&state.db_pool)
+        .fetch_one(&pool)
         .await
         .map_err(|_| StatusCode::BAD_REQUEST)?;
     let total: i64 = row.try_get(0).map_err(|_| StatusCode::BAD_REQUEST)?;
@@ -90,8 +94,9 @@ pub struct Popular {
 
 pub async fn day13_popular_orders(State(state): State<AppState>) -> Result<Json<Popular>,StatusCode> {
     info!("Popular orders called.");
+    let pool = state.db_pool.unwrap();
     let rows = sqlx::query("SELECT * FROM orders")
-        .fetch_all(&state.db_pool)
+        .fetch_all(&pool)
         .await.unwrap_or_else(|_| vec![]);
     if rows.is_empty() {
         return Ok(Json(Popular { popular: None }))

@@ -1,6 +1,5 @@
 use axum::http::StatusCode;
 use axum::Json;
-use axum::response::IntoResponse;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
@@ -39,7 +38,7 @@ pub struct Response {
     pub result: String,
 }
 
-pub async fn day15_password(Json(data): Json<Data>) -> impl IntoResponse {
+pub async fn day15_password(Json(data): Json<Data>) -> (StatusCode, Json<Response>) {
     let password = data.input;
     info!("Password nice: {}", password);
     let result = match password.as_str() {
@@ -65,15 +64,11 @@ pub struct GameResponse {
 
 pub async fn day15_game(Json(data): Json<Data>) -> (StatusCode, Json<GameResponse>) {
     let password = data.input;
-    info!("Password game: {}", password);
+    println!("Password game: {}", password);
     let uppercase = Regex::new(r"[A-Z]+").unwrap();
     let lowercase = Regex::new(r"[a-z]+").unwrap();
     let digit = Regex::new(r"[0-9]").unwrap();
     let number = Regex::new(r"[0-9]+").unwrap();
-    let joy = Regex::new(r"joy joy").unwrap();
-    let joy1 = Regex::new(r"j.*o.*y").unwrap();
-    let joy2 = Regex::new(r"joy[a-zA-Z0-9]+").unwrap();
-    let joy3 = Regex::new(r"[a-zA-Z0-9]+joy").unwrap();
     let unicode = Regex::new(r"[\u{2980}-\u{2BFF}]").unwrap();
     let emoji = Regex::new(concat!(
         "[",
@@ -97,14 +92,164 @@ pub async fn day15_game(Json(data): Json<Data>) -> (StatusCode, Json<GameRespons
         password if !uppercase.is_match(password) || !lowercase.is_match(password) || !digit.is_match(password) => (StatusCode::BAD_REQUEST, Json(GameResponse { result: Result::Naughty.as_str(), reason: "more types of chars".to_string() })),
         password if digit.find_iter(password).count() < 5 => (StatusCode::BAD_REQUEST, Json(GameResponse { result: Result::Naughty.as_str(), reason: "55555".to_string() })),
         password if number.find_iter(password).map(|m| m.as_str().parse::<i32>().unwrap()).sum::<i32>() != 2023 => (StatusCode::BAD_REQUEST, Json(GameResponse { result: Result::Naughty.as_str(), reason: "math is hard".to_string() })),
-        password if !joy1.is_match(password) => (StatusCode::NOT_ACCEPTABLE, Json(GameResponse { result: Result::Naughty.as_str(), reason: "not joyful enough".to_string() })),
-        password if joy.is_match(password) => (StatusCode::NOT_ACCEPTABLE, Json(GameResponse { result: Result::Naughty.as_str(), reason: "not joyful enough".to_string() })),
-        password if joy2.is_match(password) => (StatusCode::NOT_ACCEPTABLE, Json(GameResponse { result: Result::Naughty.as_str(), reason: "not joyful enough".to_string() })),
-        password if joy3.is_match(password) => (StatusCode::NOT_ACCEPTABLE, Json(GameResponse { result: Result::Naughty.as_str(), reason: "not joyful enough".to_string() })),
+        password if !contains_joy(password) => (StatusCode::NOT_ACCEPTABLE, Json(GameResponse { result: Result::Naughty.as_str(), reason: "not joyful enough".to_string() })),
         password if !password.chars().zip(password.chars().skip(1).zip(password.chars().skip(2))).any(|(a, (b, c))| a.is_alphabetic() && a == c && b != a) => (StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS, Json(GameResponse { result: Result::Naughty.as_str(), reason: "illegal: no sandwich".to_string() })),
         password if !unicode.is_match(password) => (StatusCode::RANGE_NOT_SATISFIABLE, Json(GameResponse { result: Result::Naughty.as_str(), reason: "outranged".to_string() })),
         password if !emoji.is_match(password) => (StatusCode::UPGRADE_REQUIRED, Json(GameResponse { result: Result::Naughty.as_str(), reason: "😳".to_string() })),
         _password if !hash_hex.ends_with("a") => (StatusCode::IM_A_TEAPOT, Json(GameResponse { result: Result::Naughty.as_str(), reason: "not a coffee brewer".to_string() })),
         _ => (StatusCode::OK, Json(GameResponse { result: Result::Nice.as_str(), reason: "that's a nice password".to_string() })),
+    }
+}
+
+fn contains_joy(password: &str) -> bool {
+    let j = password.match_indices("j");
+    let o = password.match_indices("o");
+    let y = password.match_indices("y");
+    if j.clone().count() != 1 || o.clone().count() != 1 || y.clone().count() != 1 {
+        println!("Does not contain joy, too many characters.");
+        return false;
+    }
+    if j.min() < o.clone().min() && o.min() < y.min() {
+        println!("Contains joy.");
+        return true;
+    }
+    println!("Does not contain joy, wrong order.");
+    false
+}
+
+#[cfg(test)]
+mod tests {
+
+    #[tokio::test]
+    async fn test_day15_password() {
+        use super::*;
+        let data = Data { input: "vattyru".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response.result, "nice");
+        let data = Data { input: "aaa".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response.result, "nice");
+        let data = Data { input: "utatb".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        let data = Data { input: "abaa".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        let data = Data { input: "cdaaa".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        let data = Data { input: "pqaaa".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        let data = Data { input: "xyaaa".to_string() };
+        let (status, response) = day15_password(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+    }
+
+    #[tokio::test]
+    async fn test_day15_game() {
+        use super::*;
+        let data = Data { input: "mario".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "8 chars");
+        let data = Data { input: "mariobro".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "more types of chars");
+        let data = Data { input: "EEEEEEEEEEE".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "more types of chars");
+        let data = Data { input: "E3E3E3E3E3E".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "more types of chars");
+        let data = Data { input: "e3E3e#eE#ee3#EeE3".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "55555");
+        let data = Data { input: "Password12345".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "math is hard");
+        let data = Data { input: "2 00 2 3 OOgaBooga".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::BAD_REQUEST);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "math is hard");
+        let data = Data { input: "2+2/2-8*8 = 1-2000 OOgaBooga".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::NOT_ACCEPTABLE);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "not joyful enough");
+        let data = Data { input: "2000.23.A yoyoj".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::NOT_ACCEPTABLE);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "not joyful enough");
+        let data = Data { input: "2000.23.A joy joy".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::NOT_ACCEPTABLE);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "not joyful enough");
+        let data = Data { input: "2000.23.A joyo".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::NOT_ACCEPTABLE);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "not joyful enough");
+        let data = Data { input: "2000.23.A j  ;)  o  ;)  y".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "illegal: no sandwich");
+        let data = Data { input: "2020.3.A j  ;)  o  ;)  y".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::UNAVAILABLE_FOR_LEGAL_REASONS);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "illegal: no sandwich");
+        let data = Data { input: "2000.23.A j  ;)  o  ;)  y AzA".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::RANGE_NOT_SATISFIABLE);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "outranged");
+        let data = Data { input: "2000.23.A j  ;)  o  ;)  y⥿ AzA".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::RANGE_NOT_SATISFIABLE);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "outranged");
+        let data = Data { input: "2000.23.A j  ;)  o  ;)  y ⦄AzA".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::UPGRADE_REQUIRED);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "😳");
+        let data = Data { input: "2000.23.A j  🥶  o  🍦  y ⦄AzA".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::IM_A_TEAPOT);
+        assert_eq!(response.result, "naughty");
+        assert_eq!(response.reason, "not a coffee brewer");
+        let data = Data { input: "2000.23.A j ⦖⦖⦖⦖⦖⦖⦖⦖ 🥶  o  🍦  y ⦄AzA".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response.result, "nice");
+        assert_eq!(response.reason, "that's a nice password");
+        let data = Data { input: "2000.23.A j ⦖⦖⦖⦖⦖⦖⦖⦖ 🥶  o  🍦  y ⦄AzA".to_string() };
+        let (status, response) = day15_game(Json(data)).await;
+        assert_eq!(status, StatusCode::OK);
+        assert_eq!(response.result, "nice");
+        assert_eq!(response.reason, "that's a nice password");
     }
 }
