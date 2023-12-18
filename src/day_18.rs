@@ -1,5 +1,5 @@
 use std::collections::HashMap;
-use axum::extract::State;
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
@@ -118,33 +118,58 @@ pub async fn day18_total_orders_per_region(State(state): State<AppState>) -> Res
 
 #[derive(Serialize, Deserialize, Debug)]
 pub struct Popular {
-    pub popular: Option<String>,
+    pub region: String,
+    pub top_gifts: Vec<String>,
 }
 
-pub async fn day18_popular_orders(State(state): State<AppState>) -> Result<Json<Popular>,StatusCode> {
-    info!("Popular orders called.");
+pub async fn day18_popular_orders_per_region(State(state): State<AppState>, Path(max): Path<i32>) -> Result<Json<Vec<Popular>>,StatusCode> {
+    info!("Popular orders per region called.");
     let pool = state.db_pool.unwrap();
-    let rows = sqlx::query("SELECT * FROM orders")
+    let popular_orders_per_region = sqlx::query("SELECT regions.name, orders.gift_name, SUM(orders.quantity) FROM orders INNER JOIN regions ON orders.region_id = regions.id GROUP BY regions.name, orders.gift_name")
         .fetch_all(&pool)
         .await.unwrap_or_else(|_| vec![]);
-    if rows.is_empty() {
-        return Ok(Json(Popular { popular: None }))
-    }
-    let mut orders: HashMap<String,i32> = HashMap::new();
-    rows.iter()
+    info!("Popular orders per region received");
+    let mut orders: HashMap<String,Vec<(String, i64)>> = HashMap::new();
+    popular_orders_per_region.iter()
         .for_each(|row| {
-            let name = row.get::<String, _>("gift_name");
-            let quantity = row.get::<i32, _>("quantity");
-            if orders.contains_key(&name) {
-                orders.insert(name.clone(), orders.get(&name).unwrap() + quantity);
+            let region = row.get::<String, _>("name");
+            let gift_name = row.get::<String, _>("gift_name");
+            let quantity = row.get::<i64, _>(2);
+            if orders.contains_key(&region) {
+                let region_orders = orders.get_mut(&region).unwrap();
+                region_orders.push((gift_name.clone(), quantity));
             } else {
-                orders.insert(name.clone(), quantity);
+                let region_orders = vec![(gift_name.clone(), quantity)];
+                orders.insert(region.clone(), region_orders);
             }
         });
-    let (popular, quantity) = orders.iter()
-        .max_by_key(|order| order.1)
-        .ok_or(StatusCode::BAD_REQUEST)?;
-    info!("Popular order: {} with {} orders", popular, quantity);
-    Ok(Json(Popular { popular: Some(popular.to_string()) }))
+    let rows = sqlx::query("SELECT name FROM regions")
+        .fetch_all(&pool)
+        .await.unwrap_or_else(|_| vec![]);
+    for row in rows {
+        let region = row.get::<String, _>("name");
+        if !orders.contains_key(&region) {
+            orders.insert(region.clone(), vec![]);
+        }
+    }
+    info!("Popular orders: {:?}", orders);
+    let mut popular: Vec<Popular> = orders.iter()
+        .map(|(region, region_orders)| {
+            let mut region_orders = region_orders.clone();
+            region_orders.sort_by(|a, b| {
+                if a.1 == b.1 {
+                    return a.0.cmp(&b.0);
+                }
+                b.1.cmp(&a.1)
+            });
+            let top_gifts: Vec<String> = region_orders.iter()
+                .take(max as usize)
+                .map(|(gift_name, _)| gift_name.clone())
+                .collect();
+            Popular { region: region.clone(), top_gifts }
+        })
+        .collect();
+    popular.sort_by(|a, b| a.region.cmp(&b.region));
+    Ok(Json(popular))
 }
 
