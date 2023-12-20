@@ -29,18 +29,18 @@ pub fn init_websocket() -> Extension<WsState> {
 }
 
 pub async fn day19_ping_websocket_handler(ws: WebSocketUpgrade, Extension(state): Extension<WsState>) -> impl IntoResponse {
-    info!("Ping websocket handler called.");
+    //info!("Ping websocket handler called.");
     ws.on_upgrade(|socket| ping_websocket(socket, state))
 }
 
 async fn ping_websocket(mut stream: WebSocket, state: WsState) {
     while let Some(message) = stream.recv().await {
         if let Ok(message) = message {
-            info!("Received message: {:?}", message);
+            //info!("Received message: {:?}", message);
             if message == Message::Text("serve".to_string()) {
                 *state.game_running.write().expect("Could not get write lock to game_running") = true;
             } else if message == Message::Text("ping".to_string()) && *state.game_running.read().expect("Could not read lock game_running") == true {
-                info!("Sending pong.");
+                //info!("Sending pong.");
                 let _ = stream.send(Message::Text("pong".to_string())).await;
             }
         } else {
@@ -57,21 +57,21 @@ struct User {
 }
 
 pub async fn day19_room_reset_views(Extension(state): Extension<WsState>) -> impl IntoResponse {
-    info!("Reset views called.");
+    //info!("Reset views called.");
     *state.views.write().expect("Could not get write lock for views") = 0;
     *state.game_running.write().expect("Could not get write lock for game_started") = false;
     StatusCode::OK
 }
 
 pub async fn day19_room_get_views(Extension(state): Extension<WsState>) -> impl IntoResponse {
-    info!("Get views called.");
+    //info!("Get views called.");
     let views = state.views.read().expect("Could not get lock for state!");
-    info!("Views: {}", views);
+    //info!("Views: {}", views);
     (StatusCode::OK, views.to_string())
 }
 
 pub async fn day19_room_websocket_handler(ws: WebSocketUpgrade, Extension(state): Extension<WsState>, Path((num, name)): Path<(i32, String)>) -> impl IntoResponse {
-    info!("Room websocket handler called.");
+    //info!("Room websocket handler called.");
     let user = User {
         name: name,
         room: num,
@@ -81,7 +81,7 @@ pub async fn day19_room_websocket_handler(ws: WebSocketUpgrade, Extension(state)
 }
 
 async fn room_websocket(stream: WebSocket, user: User) {
-    info!("Room websocket called for user {} and room {}.", &user.name, &user.room);
+    //info!("Room websocket called for user {} and room {}.", &user.name, &user.room);
 
     let (sender, receiver) = stream.split();
 
@@ -90,14 +90,14 @@ async fn room_websocket(stream: WebSocket, user: User) {
         if !rooms.contains_key(&user.room) {
             let (broadcast_sender, _) = broadcast::channel(1000);
             rooms.insert(user.room, broadcast_sender);
-            info!("Created room, now there are: {:?}.", rooms);
+            //info!("Created room, now there are: {:?}.", rooms);
         } else {
-            info!("Room already exists, now there are: {:?}.", rooms);
+            //info!("Room already exists, now there are: {:?}.", rooms);
         }
     }
 
     let broadcast_receiver = {
-        info!("Subscribing to broadcast channel for room {}.", user.room);
+        //info!("Subscribing to broadcast channel for room {}.", user.room);
         user.state.rooms.read().expect("Could not get read lock for rooms!").get(&user.room).unwrap().subscribe()
     };
     let mut send_tweet = tokio::spawn(write(sender, broadcast_receiver, user.state.clone(), user.name.clone(), user.room.clone()));
@@ -123,21 +123,21 @@ async fn read(mut receiver: SplitStream<WebSocket>, broadcast_channel: broadcast
         let msg: Msg = serde_json::from_str(message.as_str())
             .expect("Could not deserialize input message");
         if msg.message.chars().count() > 128 {
-            info!("User {} in room {} is sending a message that is too long: {}", user, room, msg.message);
+            //info!("User {} in room {} is sending a message that is too long: {}", user, room, msg.message);
             continue;
         }
         let broadcast_message = json!({"user":user.clone(),"message":msg.message}).to_string();
-        info!("User {:02} in room {} is sending message to broadcast: {}", user, room, broadcast_message);
+        //info!("User {:02} in room {} is sending message to broadcast: {}", user, room, broadcast_message);
         let _ = broadcast_channel.send(broadcast_message);
     }
 }
 
 async fn write(mut sender: SplitSink<WebSocket, Message>, mut broadcast_receiver: broadcast::Receiver<String>, state: WsState, user: String, room: i32) -> Result<(), Error> {
     while let Ok(msg) = broadcast_receiver.recv().await {
-        info!("User {} in room {} received broadcast message: {}", user, room, msg);
+        //info!("User {} in room {} received broadcast message: {}", user, room, msg);
         let result = sender.send(Message::Text(msg)).await;
         if result.is_err() {
-            info!("User {} has left the room {}.", user, room);
+            //info!("User {} has left the room {}.", user, room);
             
             return Ok(());
         } else {
