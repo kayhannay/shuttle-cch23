@@ -34,9 +34,6 @@ pub async fn day19_ping_websocket_handler(ws: WebSocketUpgrade, Extension(state)
 }
 
 async fn ping_websocket(mut stream: WebSocket, state: WsState) {
-    // By splitting we can send and receive at the same time.
-    //let (mut sender, mut receiver) = stream.split();
-
     while let Some(message) = stream.recv().await {
         if let Ok(message) = message {
             info!("Received message: {:?}", message);
@@ -91,7 +88,7 @@ async fn room_websocket(stream: WebSocket, user: User) {
     if user.room != 0 {
         let mut rooms = user.state.rooms.write().expect("Could not get lock for rooms!");
         if !rooms.contains_key(&user.room) {
-            let (broadcast_sender, _) = broadcast::channel(100);
+            let (broadcast_sender, _) = broadcast::channel(1000);
             rooms.insert(user.room, broadcast_sender);
             info!("Created room, now there are: {:?}.", rooms);
         } else {
@@ -103,12 +100,12 @@ async fn room_websocket(stream: WebSocket, user: User) {
         info!("Subscribing to broadcast channel for room {}.", user.room);
         user.state.rooms.read().expect("Could not get read lock for rooms!").get(&user.room).unwrap().subscribe()
     };
-    let mut send_tweet = tokio::spawn(write(sender, broadcast_receiver, user.state.clone(), user.name.clone()));
+    let mut send_tweet = tokio::spawn(write(sender, broadcast_receiver, user.state.clone(), user.name.clone(), user.room.clone()));
 
     let broadcast_channel = {
         user.state.rooms.read().expect("Could not get read lock for rooms").get(&user.room).unwrap().clone()
     };
-    let mut recv_tweet = tokio::spawn(read(receiver, broadcast_channel, user.name));
+    let mut recv_tweet = tokio::spawn(read(receiver, broadcast_channel, user.name, user.room));
 
     tokio::select! {
 		_ = (&mut send_tweet) => recv_tweet.abort(),
@@ -121,26 +118,28 @@ struct Msg {
     message: String,
 }
 
-async fn read(mut receiver: SplitStream<WebSocket>, broadcast_channel: broadcast::Sender<String>, user: String) {
+async fn read(mut receiver: SplitStream<WebSocket>, broadcast_channel: broadcast::Sender<String>, user: String, room: i32) {
     while let Some(Ok(Message::Text(message))) = receiver.next().await {
         let msg: Msg = serde_json::from_str(message.as_str())
             .expect("Could not deserialize input message");
         if msg.message.chars().count() > 128 {
+            info!("User {} in room {} is sending a message that is too long: {}", user, room, msg.message);
             continue;
         }
         let broadcast_message = json!({"user":user.clone(),"message":msg.message}).to_string();
-        info!("User {} is sending message to broadcast: {}", user, broadcast_message);
+        info!("User {:02} in room {} is sending message to broadcast: {}", user, room, broadcast_message);
         let _ = broadcast_channel.send(broadcast_message);
     }
 }
 
-async fn write(mut sender: SplitSink<WebSocket, Message>, mut broadcast_receiver: broadcast::Receiver<String>, state: WsState, user: String) -> Result<(), Error> {
+async fn write(mut sender: SplitSink<WebSocket, Message>, mut broadcast_receiver: broadcast::Receiver<String>, state: WsState, user: String, room: i32) -> Result<(), Error> {
     while let Ok(msg) = broadcast_receiver.recv().await {
-        info!("User {} received broadcast message: {}", user, msg);
+        info!("User {} in room {} received broadcast message: {}", user, room, msg);
         let result = sender.send(Message::Text(msg)).await;
         if result.is_err() {
-            info!("User {} has left the room.", user);
-            break;
+            info!("User {} has left the room {}.", user, room);
+            
+            return Ok(());
         } else {
             *state.views.write().expect("Could not get lock for state!") += 1;
         }

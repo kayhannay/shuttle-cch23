@@ -39,6 +39,7 @@ mod day_14;
 mod day_15;
 mod day_18;
 mod day_19;
+//mod day_19b;
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
@@ -116,6 +117,7 @@ async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error
         .route("/19/views", get(day19_room_get_views))
         .route("/19/ws/room/:num/user/:name", get(day19_room_websocket_handler))
         .with_state(shared_state)
+        //.merge(day_19b::get_routes())
         .layer(websocket_state))
 }
 
