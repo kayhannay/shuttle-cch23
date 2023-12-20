@@ -24,6 +24,7 @@ use crate::day_13::{day13_insert_orders, day13_popular_orders, day13_reset, day1
 use crate::day_14::{day14_safe, day14_unsafe};
 use crate::day_15::{day15_game, day15_password};
 use crate::day_18::{day18_insert_orders, day18_insert_regions, day18_popular_orders_per_region, day18_reset, day18_total_orders_per_region};
+use crate::day_19::{day19_ping_websocket_handler, day19_room_get_views, day19_room_reset_views, day19_room_websocket_handler, init_websocket};
 
 mod day_minus1;
 mod day_01;
@@ -37,6 +38,7 @@ mod day_13;
 mod day_14;
 mod day_15;
 mod day_18;
+mod day_19;
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
@@ -74,6 +76,9 @@ async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error
         template_engine: Engine::from(hbs),
     };
 
+    info!("Initializing websocket.");
+    let websocket_state = init_websocket();
+
     info!("Initializing router.");
     Ok(Router::new()
         .route("/", get(hello_world))
@@ -106,7 +111,12 @@ async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error
         .route("/18/regions", post(day18_insert_regions))
         .route("/18/regions/total", get(day18_total_orders_per_region))
         .route("/18/regions/top_list/:num", get(day18_popular_orders_per_region))
-        .with_state(shared_state))
+        .route("/19/ws/ping", get(day19_ping_websocket_handler))
+        .route("/19/reset", post(day19_room_reset_views))
+        .route("/19/views", get(day19_room_get_views))
+        .route("/19/ws/room/:num/user/:name", get(day19_room_websocket_handler))
+        .with_state(shared_state)
+        .layer(websocket_state))
 }
 
 #[cfg(test)]
