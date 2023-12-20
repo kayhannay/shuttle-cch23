@@ -4,7 +4,6 @@ use axum::http::StatusCode;
 use axum::Json;
 use serde::{Deserialize, Serialize};
 use sqlx::{FromRow, Row};
-use sqlx::postgres::PgRow;
 use tracing::info;
 use crate::AppState;
 
