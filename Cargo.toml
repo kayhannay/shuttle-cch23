@@ -1,6 +1,6 @@
 [package]
 name = "cch23-klismas"
-version = "0.20.0"
+version = "0.21.0"
 edition = "2021"
 publish = false
 
@@ -34,6 +34,7 @@ futures-util = "0.3.29"
 tar = "0.4.40"
 tempfile = "3.8.1"
 git2 = "0.18.1"
+s2 = "0.0.12"
 
 [dev-dependencies]
 tokio = "1.34.0"
