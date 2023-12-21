@@ -39,6 +39,7 @@ mod day_14;
 mod day_15;
 mod day_18;
 mod day_19;
+mod day_20;
 //mod day_19b;
 
 #[shuttle_runtime::main]
@@ -117,7 +118,7 @@ async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error
         .route("/19/views", get(day19_room_get_views))
         .route("/19/ws/room/:num/user/:name", get(day19_room_websocket_handler))
         .with_state(shared_state)
-        //.merge(day_19b::get_routes())
+        .nest("/20", day_20::router())
         .layer(websocket_state))
 }
 
