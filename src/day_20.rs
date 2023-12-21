@@ -33,7 +33,7 @@ async fn day20_archive_files_size(request: Bytes) -> Result<String, StatusCode> 
     Ok(size.to_string())
 }
 
-async fn day20_cookie(header: HeaderMap, request: Bytes) -> Result<String, StatusCode> {
+async fn day20_cookie(request: Bytes) -> Result<String, StatusCode> {
     info!("Cookie called.");
     let mut archive = Archive::new(&request[..]);
     let tmp_path = tempdir().expect("Could not create tempdir").into_path();
