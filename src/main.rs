@@ -42,6 +42,7 @@ mod day_19;
 mod day_20;
 mod day_21;
 mod day_05;
+mod day_22;
 //mod day_19b;
 
 #[shuttle_runtime::main]
@@ -123,6 +124,7 @@ async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error
         .nest("/5", day_05::router())
         .nest("/20", day_20::router())
         .nest("/21", day_21::router())
+        .nest("/22", day_22::router())
         .layer(websocket_state))
 }
 
