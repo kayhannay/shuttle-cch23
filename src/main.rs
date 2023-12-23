@@ -1,30 +1,8 @@
-use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
 use axum::Router;
-use axum::routing::get;
-use axum::routing::post;
 use axum_template::engine::Engine;
-use chrono::{DateTime, Utc};
 use handlebars::Handlebars;
 use sqlx::PgPool;
-use tower_http::services::ServeDir;
 use tracing::info;
-
-use day_01::day01_get;
-use day_04::day04_post;
-use day_04::day04_post_contest;
-use day_06::day06_post;
-use day_07::{day07_get, day07_get_task2};
-use day_08::day08_get;
-use day_minus1::error_500;
-use day_minus1::hello_world;
-use crate::day_08::day08_get_drop;
-use crate::day_12::{day12_load, day12_save, day12_ulids, day12_ulids_weekday};
-use crate::day_13::{day13_insert_orders, day13_popular_orders, day13_reset, day13_sql, day13_total_orders};
-use crate::day_14::{day14_safe, day14_unsafe};
-use crate::day_15::{day15_game, day15_password};
-use crate::day_18::{day18_insert_orders, day18_insert_regions, day18_popular_orders_per_region, day18_reset, day18_total_orders_per_region};
-use crate::day_19::{day19_ping_websocket_handler, day19_room_get_views, day19_room_reset_views, day19_room_websocket_handler, init_websocket};
 
 mod day_minus1;
 mod day_01;
@@ -43,7 +21,6 @@ mod day_20;
 mod day_21;
 mod day_05;
 mod day_22;
-//mod day_19b;
 
 #[shuttle_runtime::main]
 async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::ShuttleAxum {
@@ -51,13 +28,6 @@ async fn main(#[shuttle_shared_db::Postgres] pool: PgPool) -> shuttle_axum::Shut
 }
 
 type AppEngine = Engine<Handlebars<'static>>;
-
-#[derive(Clone)]
-struct AppState {
-    day12: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
-    db_pool: Option<PgPool>,
-    template_engine: AppEngine,
-}
 
 async fn init_app_with_db(pool: PgPool) -> Result<Router, shuttle_runtime::Error> {
     info!("Migrating database.");
@@ -69,63 +39,26 @@ async fn init_app_with_db(pool: PgPool) -> Result<Router, shuttle_runtime::Error
 }
 async fn init_app(pool: Option<PgPool>) -> Result<Router, shuttle_runtime::Error> {
 
-    info!("Initializing template engine.");
-    let mut hbs = Handlebars::new();
-    hbs.register_template_file("unsafe", "./templates/unsafe.hbs").unwrap();
-    hbs.register_template_file("safe", "./templates/safe.hbs").unwrap();
-
-    info!("Initializing state.");
-    let shared_state = AppState {
-        day12: Arc::new(Mutex::new(HashMap::new())),
-        db_pool: pool,
-        template_engine: Engine::from(hbs),
-    };
-
-    info!("Initializing websocket.");
-    let websocket_state = init_websocket();
-
     info!("Initializing router.");
     Ok(Router::new()
-        .route("/", get(hello_world))
-        .route("/-1/error", get(error_500))
-        .route("/1/*nums", get(day01_get))
-        .route("/4/strength", post(day04_post))
-        .route("/4/contest", post(day04_post_contest))
-        .route("/6", post(day06_post))
-        .route("/7/decode", get(day07_get))
-        .route("/7/bake", get(day07_get_task2))
-        .route("/8/weight/:id", get(day08_get))
-        .route("/8/drop/:id", get(day08_get_drop))
-        .nest_service("/11/assets/", ServeDir::new("assets"))
-        .route("/11/red_pixels", post(day_11::day11_post))
-        .route("/12/save/:text", post(day12_save))
-        .route("/12/load/:text", get(day12_load))
-        .route("/12/ulids", post(day12_ulids))
-        .route("/12/ulids/:weekday", post(day12_ulids_weekday))
-        .route("/13/sql", get(day13_sql))
-        .route("/13/reset", post(day13_reset))
-        .route("/13/orders", post(day13_insert_orders))
-        .route("/13/orders/total", get(day13_total_orders))
-        .route("/13/orders/popular", get(day13_popular_orders))
-        .route("/14/unsafe", post(day14_unsafe))
-        .route("/14/safe", post(day14_safe))
-        .route("/15/nice", post(day15_password))
-        .route("/15/game", post(day15_game))
-        .route("/18/reset", post(day18_reset))
-        .route("/18/orders", post(day18_insert_orders))
-        .route("/18/regions", post(day18_insert_regions))
-        .route("/18/regions/total", get(day18_total_orders_per_region))
-        .route("/18/regions/top_list/:num", get(day18_popular_orders_per_region))
-        .route("/19/ws/ping", get(day19_ping_websocket_handler))
-        .route("/19/reset", post(day19_room_reset_views))
-        .route("/19/views", get(day19_room_get_views))
-        .route("/19/ws/room/:num/user/:name", get(day19_room_websocket_handler))
-        .with_state(shared_state)
+        .nest("/", day_minus1::router())
+        .nest("/1", day_01::router())
+        .nest("/4", day_04::router())
         .nest("/5", day_05::router())
+        .nest("/6", day_06::router())
+        .nest("/7", day_07::router())
+        .nest("/8", day_08::router())
+        .nest("/11", day_11::router())
+        .nest("/12", day_12::router())
+        .nest("/13", day_13::router(pool.clone()))
+        .nest("/14", day_14::router())
+        .nest("/15", day_15::router())
+        .nest("/18", day_18::router(pool.clone()))
+        .nest("/19", day_19::router())
         .nest("/20", day_20::router())
         .nest("/21", day_21::router())
-        .nest("/22", day_22::router())
-        .layer(websocket_state))
+        .nest("/22", day_22::router()))
+
 }
 
 #[cfg(test)]

@@ -1,18 +1,25 @@
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::post;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use sha2::Digest;
 use tracing::info;
 
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/nice", post(day15_password))
+        .route("/game", post(day15_game))
+}
+
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Data {
+struct Data {
     pub input: String,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub enum Result {
+enum Result {
     Nice,
     Naughty,
 }
@@ -34,11 +41,11 @@ impl Result {
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct Response {
+struct Response {
     pub result: String,
 }
 
-pub async fn day15_password(Json(data): Json<Data>) -> (StatusCode, Json<Response>) {
+async fn day15_password(Json(data): Json<Data>) -> (StatusCode, Json<Response>) {
     let password = data.input;
     info!("Password nice: {}", password);
     let result = match password.as_str() {
@@ -57,12 +64,12 @@ pub async fn day15_password(Json(data): Json<Data>) -> (StatusCode, Json<Respons
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
-pub struct GameResponse {
+struct GameResponse {
     pub result: String,
     pub reason: String,
 }
 
-pub async fn day15_game(Json(data): Json<Data>) -> (StatusCode, Json<GameResponse>) {
+async fn day15_game(Json(data): Json<Data>) -> (StatusCode, Json<GameResponse>) {
     let password = data.input;
     println!("Password game: {}", password);
     let uppercase = Regex::new(r"[A-Z]+").unwrap();

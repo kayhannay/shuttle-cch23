@@ -5,21 +5,34 @@ use axum::extract::{Path, WebSocketUpgrade};
 use axum::extract::ws::{Message, WebSocket};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::routing::{get, post};
 use tokio::sync::{broadcast};
 use futures::{SinkExt, StreamExt};
 use futures::stream::{SplitSink, SplitStream};
 use serde::Deserialize;
 use serde_json::json;
-use tracing::log::info;
+use tracing::info;
+
+pub fn router() -> axum::Router {
+    info!("Initializing websocket.");
+    let websocket_state = init_websocket();
+
+    axum::Router::new()
+        .route("/ws/ping", get(day19_ping_websocket_handler))
+        .route("/reset", post(day19_room_reset_views))
+        .route("/views", get(day19_room_get_views))
+        .route("/ws/room/:num/user/:name", get(day19_room_websocket_handler))
+        .layer(websocket_state)
+}
 
 #[derive(Clone)]
-pub struct WsState {
+struct WsState {
     game_running: Arc<RwLock<bool>>,
     views: Arc<RwLock<u32>>,
     rooms: Arc<RwLock<HashMap<i32, broadcast::Sender<String>>>>,
 }
 
-pub fn init_websocket() -> Extension<WsState> {
+fn init_websocket() -> Extension<WsState> {
     let state = WsState {
         game_running: Arc::new(RwLock::new(false)),
         views: Arc::new(RwLock::new(0)),
@@ -28,19 +41,19 @@ pub fn init_websocket() -> Extension<WsState> {
    Extension(state)
 }
 
-pub async fn day19_ping_websocket_handler(ws: WebSocketUpgrade, Extension(state): Extension<WsState>) -> impl IntoResponse {
-    //info!("Ping websocket handler called.");
+async fn day19_ping_websocket_handler(ws: WebSocketUpgrade, Extension(state): Extension<WsState>) -> impl IntoResponse {
+    info!("Ping websocket handler called.");
     ws.on_upgrade(|socket| ping_websocket(socket, state))
 }
 
 async fn ping_websocket(mut stream: WebSocket, state: WsState) {
     while let Some(message) = stream.recv().await {
         if let Ok(message) = message {
-            //info!("Received message: {:?}", message);
+            info!("Received message: {:?}", message);
             if message == Message::Text("serve".to_string()) {
                 *state.game_running.write().expect("Could not get write lock to game_running") = true;
             } else if message == Message::Text("ping".to_string()) && *state.game_running.read().expect("Could not read lock game_running") == true {
-                //info!("Sending pong.");
+                info!("Sending pong.");
                 let _ = stream.send(Message::Text("pong".to_string())).await;
             }
         } else {
@@ -56,26 +69,26 @@ struct User {
     state: WsState,
 }
 
-pub async fn day19_room_reset_views(Extension(state): Extension<WsState>) -> impl IntoResponse {
+async fn day19_room_reset_views(Extension(state): Extension<WsState>) -> impl IntoResponse {
     //info!("Reset views called.");
     *state.views.write().expect("Could not get write lock for views") = 0;
     *state.game_running.write().expect("Could not get write lock for game_started") = false;
     StatusCode::OK
 }
 
-pub async fn day19_room_get_views(Extension(state): Extension<WsState>) -> impl IntoResponse {
+async fn day19_room_get_views(Extension(state): Extension<WsState>) -> impl IntoResponse {
     //info!("Get views called.");
     let views = state.views.read().expect("Could not get lock for state!");
     //info!("Views: {}", views);
     (StatusCode::OK, views.to_string())
 }
 
-pub async fn day19_room_websocket_handler(ws: WebSocketUpgrade, Extension(state): Extension<WsState>, Path((num, name)): Path<(i32, String)>) -> impl IntoResponse {
+async fn day19_room_websocket_handler(ws: WebSocketUpgrade, Extension(state): Extension<WsState>, Path((num, name)): Path<(i32, String)>) -> impl IntoResponse {
     //info!("Room websocket handler called.");
     let user = User {
-        name: name,
+        name,
         room: num,
-        state: state,
+        state,
     };
     ws.on_upgrade(move |socket| room_websocket(socket, user))
 }
@@ -100,12 +113,12 @@ async fn room_websocket(stream: WebSocket, user: User) {
         //info!("Subscribing to broadcast channel for room {}.", user.room);
         user.state.rooms.read().expect("Could not get read lock for rooms!").get(&user.room).unwrap().subscribe()
     };
-    let mut send_tweet = tokio::spawn(write(sender, broadcast_receiver, user.state.clone(), user.name.clone(), user.room.clone()));
+    let mut send_tweet = tokio::spawn(write(sender, broadcast_receiver, user.state.clone()));
 
     let broadcast_channel = {
         user.state.rooms.read().expect("Could not get read lock for rooms").get(&user.room).unwrap().clone()
     };
-    let mut recv_tweet = tokio::spawn(read(receiver, broadcast_channel, user.name, user.room));
+    let mut recv_tweet = tokio::spawn(read(receiver, broadcast_channel, user.name));
 
     tokio::select! {
 		_ = (&mut send_tweet) => recv_tweet.abort(),
@@ -118,7 +131,7 @@ struct Msg {
     message: String,
 }
 
-async fn read(mut receiver: SplitStream<WebSocket>, broadcast_channel: broadcast::Sender<String>, user: String, room: i32) {
+async fn read(mut receiver: SplitStream<WebSocket>, broadcast_channel: broadcast::Sender<String>, user: String) {
     while let Some(Ok(Message::Text(message))) = receiver.next().await {
         let msg: Msg = serde_json::from_str(message.as_str())
             .expect("Could not deserialize input message");
@@ -132,7 +145,7 @@ async fn read(mut receiver: SplitStream<WebSocket>, broadcast_channel: broadcast
     }
 }
 
-async fn write(mut sender: SplitSink<WebSocket, Message>, mut broadcast_receiver: broadcast::Receiver<String>, state: WsState, user: String, room: i32) -> Result<(), Error> {
+async fn write(mut sender: SplitSink<WebSocket, Message>, mut broadcast_receiver: broadcast::Receiver<String>, state: WsState) -> Result<(), Error> {
     while let Ok(msg) = broadcast_receiver.recv().await {
         //info!("User {} in room {} received broadcast message: {}", user, room, msg);
         let result = sender.send(Message::Text(msg)).await;

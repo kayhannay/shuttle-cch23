@@ -1,15 +1,38 @@
+use std::collections::HashMap;
 use std::str::FromStr;
+use std::sync::{Arc, Mutex};
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::{get, post};
 use chrono::{Datelike, DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 use ulid::Ulid;
 use uuid::Uuid;
-use crate::AppState;
 
-pub async fn day12_save(State(state): State<AppState>, Path(text): Path<String>) -> Result<(),StatusCode> {
+#[derive(Clone)]
+struct Day12State {
+    day12: Arc<Mutex<HashMap<String, DateTime<Utc>>>>,
+}
+
+pub fn router() -> axum::Router {
+    info!("Initializing state.");
+    let shared_state = Day12State {
+        day12: Arc::new(Mutex::new(HashMap::new())),
+    };
+
+
+    axum::Router::new()
+        .route("/save/:text", post(day12_save))
+        .route("/load/:text", get(day12_load))
+        .route("/ulids", post(day12_ulids))
+        .route("/ulids/:weekday", post(day12_ulids_weekday))
+        .with_state(shared_state)
+}
+
+
+async fn day12_save(State(state): State<Day12State>, Path(text): Path<String>) -> Result<(),StatusCode> {
     let mut texts = state.day12.lock().map_err(|_| StatusCode::BAD_REQUEST)?;
     let now = chrono::offset::Utc::now();
     info!("Got text: {} and store it with time {}", text, now);
@@ -17,7 +40,7 @@ pub async fn day12_save(State(state): State<AppState>, Path(text): Path<String>)
     Ok(())
 }
 
-pub async fn day12_load(State(state): State<AppState>, Path(text): Path<String>) -> Result<String, StatusCode> {
+async fn day12_load(State(state): State<Day12State>, Path(text): Path<String>) -> Result<String, StatusCode> {
     info!("Load text: {}", text);
     match state.day12.lock().map_err(|_| StatusCode::BAD_REQUEST)?.get(&text) {
         Some(date) => Ok((chrono::offset::Utc::now()-date).num_seconds().to_string()),
@@ -25,7 +48,7 @@ pub async fn day12_load(State(state): State<AppState>, Path(text): Path<String>)
     }
 }
 
-pub async fn day12_ulids(Json(ulids): Json<Vec<String>>) -> Result<Json<Vec<String>>, StatusCode> {
+async fn day12_ulids(Json(ulids): Json<Vec<String>>) -> Result<Json<Vec<String>>, StatusCode> {
     info!("Got ulids: {:?}", ulids);
     let mut uuids: Vec<String> = Vec::new();
     for ulid_str in ulids.iter() {
@@ -39,7 +62,7 @@ pub async fn day12_ulids(Json(ulids): Json<Vec<String>>) -> Result<Json<Vec<Stri
 }
 
 #[derive(Serialize, Deserialize, Debug, Eq, PartialEq)]
-pub struct UlidCriteria {
+struct UlidCriteria {
     #[serde(rename = "christmas eve")]
     christmas_eve: i32,
     weekday: i32,
@@ -49,7 +72,7 @@ pub struct UlidCriteria {
     lsb_is_1: i32,
 }
 
-pub async fn day12_ulids_weekday(Path(weekday): Path<u32>, Json(ulids): Json<Vec<String>>) -> Result<Json<UlidCriteria>, StatusCode> {
+async fn day12_ulids_weekday(Path(weekday): Path<u32>, Json(ulids): Json<Vec<String>>) -> Result<Json<UlidCriteria>, StatusCode> {
     info!("Got ulids: {:?} and weekday {}", ulids, weekday);
     let mut criterias = UlidCriteria {
             christmas_eve: 0,

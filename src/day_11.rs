@@ -1,9 +1,17 @@
 use axum::http::StatusCode;
+use axum::routing::post;
 use axum_extra::extract::Multipart;
 use image::GenericImageView;
+use tower_http::services::ServeDir;
 use tracing::info;
 
-pub async fn day11_post(mut multipart: Multipart) -> Result<String, StatusCode> {
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .nest_service("/assets/", ServeDir::new("assets"))
+        .route("/red_pixels", post(day11_post))
+}
+
+async fn day11_post(mut multipart: Multipart) -> Result<String, StatusCode> {
     let mut red_pixels = 0;
     while let Some(field) = multipart.next_field().await.unwrap() {
         let name = field.name().unwrap().to_string();

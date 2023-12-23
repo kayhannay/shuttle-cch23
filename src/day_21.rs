@@ -1,4 +1,3 @@
-use std::fmt::Binary;
 use axum::extract::Path;
 use axum::http::StatusCode;
 use serde::{Deserialize, Serialize};

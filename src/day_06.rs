@@ -1,9 +1,15 @@
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::post;
 use serde::Serialize;
 use tracing::info;
 
-pub async fn day06_post(text: String) -> Result<Json<Answer>, StatusCode> {
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/", post(day06_post))
+}
+
+async fn day06_post(text: String) -> Result<Json<Answer>, StatusCode> {
     info!("Got text: {}", text);
     let elfs: i32 = text.split(" ").filter(|word| word.contains(&"elf")).count() as i32;
     let mut filter_text = text.clone();
@@ -22,7 +28,7 @@ pub async fn day06_post(text: String) -> Result<Json<Answer>, StatusCode> {
 }
 
 #[derive(Serialize, Debug)]
-pub struct Answer {
+struct Answer {
     pub elf: i32,
     #[serde(rename = "elf on a shelf")]
     pub elf_shelf: i32,

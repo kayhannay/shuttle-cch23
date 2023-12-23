@@ -1,6 +1,6 @@
 use std::str::from_utf8;
 use axum::body::Bytes;
-use axum::http::{HeaderMap, StatusCode};
+use axum::http::{StatusCode};
 use git2::{Commit, Repository};
 use tar::Archive;
 use tempfile::tempdir;

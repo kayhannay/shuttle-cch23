@@ -2,10 +2,30 @@ use std::collections::HashMap;
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Row};
+use sqlx::{FromRow, PgPool, Row};
 use tracing::info;
-use crate::AppState;
+
+#[derive(Clone)]
+struct Day18State {
+    db_pool: Option<PgPool>
+}
+
+pub fn router(pool: Option<PgPool>) -> axum::Router {
+    info!("Initializing state.");
+    let shared_state = Day18State {
+        db_pool: pool,
+    };
+
+    axum::Router::new()
+        .route("/reset", post(day18_reset))
+        .route("/orders", post(day18_insert_orders))
+        .route("/regions", post(day18_insert_regions))
+        .route("/regions/total", get(day18_total_orders_per_region))
+        .route("/regions/top_list/:num", get(day18_popular_orders_per_region))
+        .with_state(shared_state)
+}
 
 #[derive(Serialize, FromRow, Debug)]
 struct Get {
@@ -14,14 +34,14 @@ struct Get {
 }
 
 #[derive(Deserialize, Serialize, FromRow, Debug)]
-pub struct Order {
+struct Order {
     pub id: i32,
     pub region_id: i32,
     pub gift_name: String,
     pub quantity: i32,
 }
 
-pub async fn day18_reset(State(state): State<AppState>) -> Result<StatusCode, StatusCode> {
+async fn day18_reset(State(state): State<Day18State>) -> Result<StatusCode, StatusCode> {
     info!("Reset SQL called.");
     let pool = state.db_pool.unwrap();
     sqlx::query("DROP TABLE IF EXISTS orders")
@@ -50,7 +70,7 @@ pub async fn day18_reset(State(state): State<AppState>) -> Result<StatusCode, St
     }
 }
 
-pub async fn day18_insert_orders(State(state): State<AppState>, Json(orders): Json<Vec<Order>>) -> Result<StatusCode,StatusCode> {
+async fn day18_insert_orders(State(state): State<Day18State>, Json(orders): Json<Vec<Order>>) -> Result<StatusCode,StatusCode> {
     info!("Insert orders: {:?}", orders);
     let pool = state.db_pool.unwrap();
     for order in orders {
@@ -67,12 +87,12 @@ pub async fn day18_insert_orders(State(state): State<AppState>, Json(orders): Js
 }
 
 #[derive(Deserialize, Serialize, FromRow, Debug)]
-pub struct Region {
+struct Region {
     pub id: i32,
     pub name: String,
 }
 
-pub async fn day18_insert_regions(State(state): State<AppState>, Json(regions): Json<Vec<Region>>) -> Result<StatusCode,StatusCode> {
+async fn day18_insert_regions(State(state): State<Day18State>, Json(regions): Json<Vec<Region>>) -> Result<StatusCode,StatusCode> {
     info!("Insert regions: {:?}", regions);
     let pool = state.db_pool.unwrap();
     for region in regions {
@@ -88,12 +108,12 @@ pub async fn day18_insert_regions(State(state): State<AppState>, Json(regions): 
 
 
 #[derive(Serialize, Deserialize, Debug, Eq, Ord, PartialEq, PartialOrd)]
-pub struct OrderPerRegionCount {
+struct OrderPerRegionCount {
     pub region: String,
     pub total: i64,
 }
 
-pub async fn day18_total_orders_per_region(State(state): State<AppState>) -> Result<Json<Vec<OrderPerRegionCount>>, StatusCode> {
+async fn day18_total_orders_per_region(State(state): State<Day18State>) -> Result<Json<Vec<OrderPerRegionCount>>, StatusCode> {
     info!("Total orders per region called.");
     let pool = state.db_pool.unwrap();
     let rows = sqlx::query("SELECT regions.name, SUM(orders.quantity) FROM orders INNER JOIN regions ON orders.region_id = regions.id GROUP BY regions.name")
@@ -116,12 +136,12 @@ pub async fn day18_total_orders_per_region(State(state): State<AppState>) -> Res
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Popular {
+struct Popular {
     pub region: String,
     pub top_gifts: Vec<String>,
 }
 
-pub async fn day18_popular_orders_per_region(State(state): State<AppState>, Path(max): Path<i32>) -> Result<Json<Vec<Popular>>,StatusCode> {
+async fn day18_popular_orders_per_region(State(state): State<Day18State>, Path(max): Path<i32>) -> Result<Json<Vec<Popular>>,StatusCode> {
     info!("Popular orders per region called.");
     let pool = state.db_pool.unwrap();
     let popular_orders_per_region = sqlx::query("SELECT regions.name, orders.gift_name, SUM(orders.quantity) FROM orders INNER JOIN regions ON orders.region_id = regions.id GROUP BY regions.name, orders.gift_name")
@@ -171,4 +191,3 @@ pub async fn day18_popular_orders_per_region(State(state): State<AppState>, Path
     popular.sort_by(|a, b| a.region.cmp(&b.region));
     Ok(Json(popular))
 }
-

@@ -1,13 +1,20 @@
 use std::collections::HashMap;
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::{get};
 use axum_extra::headers::Cookie;
 use axum_extra::TypedHeader;
 use lib_base64::Base64;
 use serde::{Deserialize, Serialize};
 use tracing::{error, info};
 
-pub async fn day07_get(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<String,StatusCode> {
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/decode", get(day07_get))
+        .route("/bake", get(day07_get_task2))
+}
+
+async fn day07_get(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<String,StatusCode> {
     match cookie.get("recipe") {
         Some(recipe) => {
             recipe.to_string().decode().map_err(|_| StatusCode::BAD_REQUEST)
@@ -17,13 +24,13 @@ pub async fn day07_get(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<Strin
 }
 
 #[derive(Deserialize, Debug)]
-pub struct BakeData{
+struct BakeData{
     recipe: HashMap<String, i64>,
     pantry: HashMap<String, i64>,
 }
 
 #[derive(Serialize, Debug)]
-pub struct BakeResult{
+struct BakeResult{
     cookies: i64,
     pantry: HashMap<String, i64>,
 }
@@ -47,7 +54,7 @@ impl BakeData {
         }
     }
 
-    pub fn bake(&mut self) -> BakeResult {
+    fn bake(&mut self) -> BakeResult {
         let mut cookie_counter = 0;
         self.recipe.retain(|_, amount| *amount > 0i64);
         info!("Recipe after cleanup: {:?}", self.recipe);
@@ -61,7 +68,7 @@ impl BakeData {
     }
 }
 
-pub async fn day07_get_task2(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<Json<BakeResult>,StatusCode> {
+async fn day07_get_task2(TypedHeader(cookie): TypedHeader<Cookie>) -> Result<Json<BakeResult>,StatusCode> {
     info!("Got cookie: {:?}", cookie);
     let data = cookie.get("recipe")
         .and_then(|data| Some(data.to_string().decode())).ok_or(StatusCode::BAD_REQUEST)?.map_err(|_| StatusCode::BAD_REQUEST);

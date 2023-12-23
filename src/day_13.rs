@@ -2,11 +2,31 @@ use std::collections::HashMap;
 use axum::extract::State;
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::{get, post};
 use serde::{Deserialize, Serialize};
-use sqlx::{FromRow, Row};
+use sqlx::{FromRow, PgPool, Row};
 use sqlx::postgres::PgRow;
 use tracing::info;
-use crate::AppState;
+
+#[derive(Clone)]
+struct Day13State {
+    db_pool: Option<PgPool>
+}
+
+pub fn router(pool: Option<PgPool>) -> axum::Router {
+    info!("Initializing state.");
+    let shared_state = Day13State {
+        db_pool: pool,
+    };
+
+    axum::Router::new()
+        .route("/sql", get(day13_sql))
+        .route("/reset", post(day13_reset))
+        .route("/orders", post(day13_insert_orders))
+        .route("/orders/total", get(day13_total_orders))
+        .route("/orders/popular", get(day13_popular_orders))
+        .with_state(shared_state)
+}
 
 #[derive(Serialize, FromRow, Debug)]
 struct Get {
@@ -15,14 +35,14 @@ struct Get {
 }
 
 #[derive(Deserialize, Serialize, FromRow, Debug)]
-pub struct Order {
+struct Order {
     pub id: i32,
     pub region_id: i32,
     pub gift_name: String,
     pub quantity: i32,
 }
 
-pub async fn day13_sql(State(state): State<AppState>) -> Result<String, StatusCode> {
+async fn day13_sql(State(state): State<Day13State>) -> Result<String, StatusCode> {
     info!("Get SQL called.");
     let pool = state.db_pool.unwrap();
     match sqlx::query_as::<_, Get>("SELECT * FROM day13_get")
@@ -34,7 +54,7 @@ pub async fn day13_sql(State(state): State<AppState>) -> Result<String, StatusCo
     }
 }
 
-pub async fn day13_reset(State(state): State<AppState>) -> Result<StatusCode, StatusCode> {
+async fn day13_reset(State(state): State<Day13State>) -> Result<StatusCode, StatusCode> {
     info!("Reset SQL called.");
     let pool = state.db_pool.unwrap();
     sqlx::query("DROP TABLE IF EXISTS orders")
@@ -54,7 +74,7 @@ pub async fn day13_reset(State(state): State<AppState>) -> Result<StatusCode, St
     }
 }
 
-pub async fn day13_insert_orders(State(state): State<AppState>, Json(orders): Json<Vec<Order>>) -> Result<StatusCode,StatusCode> {
+async fn day13_insert_orders(State(state): State<Day13State>, Json(orders): Json<Vec<Order>>) -> Result<StatusCode,StatusCode> {
     info!("Insert orders: {:?}", orders);
     let pool = state.db_pool.unwrap();
     for order in orders {
@@ -71,11 +91,11 @@ pub async fn day13_insert_orders(State(state): State<AppState>, Json(orders): Js
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct OrderCount {
+struct OrderCount {
     pub total: i64,
 }
 
-pub async fn day13_total_orders(State(state): State<AppState>) -> Result<Json<OrderCount>, StatusCode> {
+async fn day13_total_orders(State(state): State<Day13State>) -> Result<Json<OrderCount>, StatusCode> {
     info!("Total orders called.");
     let pool = state.db_pool.unwrap();
     let row: PgRow = sqlx::query("SELECT SUM(quantity) FROM orders")
@@ -88,11 +108,11 @@ pub async fn day13_total_orders(State(state): State<AppState>) -> Result<Json<Or
 }
 
 #[derive(Serialize, Deserialize, Debug)]
-pub struct Popular {
+struct Popular {
     pub popular: Option<String>,
 }
 
-pub async fn day13_popular_orders(State(state): State<AppState>) -> Result<Json<Popular>,StatusCode> {
+async fn day13_popular_orders(State(state): State<Day13State>) -> Result<Json<Popular>,StatusCode> {
     info!("Popular orders called.");
     let pool = state.db_pool.unwrap();
     let rows = sqlx::query("SELECT * FROM orders")

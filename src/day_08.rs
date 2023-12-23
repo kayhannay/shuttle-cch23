@@ -1,7 +1,14 @@
 use axum::extract::Path;
 use axum::http::StatusCode;
+use axum::routing::{get};
 use serde::{Deserialize, Serialize};
 use tracing::info;
+
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/weight/:id", get(day08_get))
+        .route("/drop/:id", get(day08_get_drop))
+}
 
 const GRAVITY: f32 = 9.825;
 
@@ -11,7 +18,7 @@ struct Pokemon {
     id: i32,
     weight: i32,
 }
-pub async fn day08_get(Path(id): Path<i32>) -> Result<String, StatusCode> {
+async fn day08_get(Path(id): Path<i32>) -> Result<String, StatusCode> {
     day08_get_impl("https://pokeapi.co/".to_string(), id).await
 }
 
@@ -33,7 +40,7 @@ async fn day08_get_impl(api: String, id: i32) -> Result<String, StatusCode> {
     Ok(format!("{}", pokemon.weight as f32 / 10f32))
 }
 
-pub async fn day08_get_drop(Path(id): Path<i32>) -> Result<String, StatusCode> {
+async fn day08_get_drop(Path(id): Path<i32>) -> Result<String, StatusCode> {
     day08_get_drop_impl("https://pokeapi.co/".to_string(), id).await
 }
 

@@ -1,11 +1,18 @@
 use axum::http::StatusCode;
+use axum::routing::get;
 use tracing::info;
 
-pub async fn hello_world() -> &'static str {
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/", get(hello_world))
+        .route("/-1/error", get(error_500))
+}
+
+async fn hello_world() -> &'static str {
     "Hello, world!"
 }
 
-pub async fn error_500() -> Result<String, StatusCode> {
+async fn error_500() -> Result<String, StatusCode> {
     info!("Return error 500");
     Err(StatusCode::INTERNAL_SERVER_ERROR)
 }

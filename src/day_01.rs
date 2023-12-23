@@ -1,13 +1,15 @@
 use std::num::ParseIntError;
 use axum::extract::Path;
 use axum::http::StatusCode;
+use axum::routing::get;
 use tracing::log::info;
 
-// pub async fn get_day1(Path((num1, num2)): Path<(i32, i32)>) -> String {
-//     format!("{}", (num1 ^ num2).pow(3))
-// }
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/*nums", get(day01_get))
+}
 
-pub async fn day01_get(Path(path): Path<String>) -> Result<String, StatusCode> {
+async fn day01_get(Path(path): Path<String>) -> Result<String, StatusCode> {
     let nums: Result<Vec<i32>, ParseIntError> = path.split_terminator("/").map(|x| {
         let parsed_x = x.parse::<i32>()?;
         Ok(parsed_x)

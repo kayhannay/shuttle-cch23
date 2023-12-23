@@ -1,15 +1,22 @@
 use axum::http::StatusCode;
 use axum::Json;
+use axum::routing::{post};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
-pub async fn day04_post(Json(reindeers): Json<Vec<Reindeer>>) -> Result<String, StatusCode> {
+pub fn router() -> axum::Router {
+    axum::Router::new()
+        .route("/strength", post(day04_post))
+        .route("/contest", post(day04_post_contest))
+}
+
+async fn day04_post(Json(reindeers): Json<Vec<Reindeer>>) -> Result<String, StatusCode> {
     info!("Got reindeers: {:?}", reindeers);
     let strength: i32 = reindeers.iter().map(|reindeer| reindeer.strength).sum();
     Ok(format!("{}", strength))
 }
 
-pub async fn day04_post_contest(Json(reindeers): Json<Vec<ContestReindeer>>) -> Result<Json<ContestResult>, StatusCode> {
+async fn day04_post_contest(Json(reindeers): Json<Vec<ContestReindeer>>) -> Result<Json<ContestResult>, StatusCode> {
     info!("Got reindeers: {:?}", reindeers);
     let fastest: &ContestReindeer = reindeers
         .iter()
@@ -37,14 +44,14 @@ pub async fn day04_post_contest(Json(reindeers): Json<Vec<ContestReindeer>>) -> 
 }
 
 #[derive(Deserialize, Debug)]
-pub struct Reindeer {
+struct Reindeer {
     #[allow(unused)]
     name: String,
     strength: i32,
 }
 
 #[derive(Deserialize, Debug)]
-pub struct ContestReindeer {
+struct ContestReindeer {
     name: String,
     strength: i32,
     speed: f32,
@@ -57,7 +64,7 @@ pub struct ContestReindeer {
 }
 
 #[derive(Serialize, Debug, Eq, PartialEq)]
-pub struct ContestResult {
+struct ContestResult {
     fastest: String,
     tallest: String,
     magician: String,
